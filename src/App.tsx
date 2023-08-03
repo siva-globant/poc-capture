@@ -330,6 +330,7 @@ function App() {
                 .filter((e) => !["url"].includes(e))
                 .map((eleKey) => (
                   <p>
+                    {/* @ts-ignore */}
                     {eleKey}:{ele[eleKey]}
                   </p>
                 ))}
