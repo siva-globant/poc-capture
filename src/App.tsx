@@ -1,7 +1,13 @@
 import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import "./App.css";
-
+import {
+  useMonitoring,
+  SentryOperation,
+  SentryTransaction,
+  SentryTag,
+  SentrySpan,
+} from "./context";
 type ResolutionValueUnions =
   | "default"
   | "1920x1080"
@@ -125,6 +131,8 @@ function App() {
   // const [recordingStatus,setRecordingStatus]=useState<"idle"|"recording">("idle")
   const [recordedVideo, setRecordedVideo] = useState<IRecordedVideoState[]>([]);
 
+  const { measurePerformance } = useMonitoring();
+
   const bytesToSize = (bytes: number) => {
     const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
     if (bytes == 0) return "n/a";
@@ -159,7 +167,20 @@ function App() {
   };
 
   const startRecording = async () => {
+    const transaction = measurePerformance(
+      SentryTransaction.VIDEO_PROCESSING,
+      SentryOperation.VIDEO_CAPTURE
+    );
+    transaction.setTag(
+      SentryTag.INSPECTION_ID,
+      `Random-${Math.floor(Math.random() * 100)}`
+    );
+
+    transaction.startSpan(SentrySpan.ASK_PERMISSION, null);
     await getCameraPermission();
+    transaction.finishSpan(SentrySpan.ASK_PERMISSION);
+
+    transaction.startSpan(SentrySpan.TAKE_VIDEO, null);
     setIsRecording(true);
     if (!mediaStream.current) return alert("Cannot record Now");
     const media = new MediaRecorder(mediaStream.current, {
@@ -171,6 +192,9 @@ function App() {
       console.log("OnError", event);
     };
     mediaRecordRef.current.onstop = () => {
+      transaction.finishSpan(SentrySpan.TAKE_VIDEO);
+
+      transaction.startSpan(SentrySpan.BLOB_MERGING, null);
       const [chunk] = mediaChunks.current;
       const blob = new Blob(mediaChunks.current, { type: chunk.type });
       const url = URL.createObjectURL(blob);
@@ -185,6 +209,7 @@ function App() {
       };
       setRecordedVideo((prevState) => [...prevState, currentRecordVideoInfo]);
       mediaChunks.current = [];
+      transaction.finishSpan(SentrySpan.BLOB_MERGING);
     };
     mediaRecordRef.current.ondataavailable = (event) => {
       console.log("Recording done");
@@ -229,114 +254,139 @@ function App() {
     <div
       style={{
         display: "flex",
-        gap: "36px",
-        maxHeight: "100vh",
-        overflowY: "hidden",
+        flexDirection: "column",
       }}
     >
-      <div style={{ flex: 8 }}>
-        <div
-          style={{
-            height: "80vh",
-            backgroundColor: "greenyellow",
-          }}
-        >
-          <video
-            style={{ width: "100%", height: "100%", aspectRatio: 16 / 9 }}
-            ref={liveStream}
-            autoPlay
-            muted
-            playsInline
-          />
-        </div>
-        <div>
-          <select value={currrentResolution} onChange={onResolutionChange}>
-            {RESOLUTIONS.map(({ label, value }) => (
-              <option key={`resolutions#${value}`} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select value={currrentBitRate} onChange={onBitRateChange}>
-            {BIT_RATES.map(({ label, value }) => (
-              <option key={`bit_rates#${value}`} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select value={currrentFrameRate} onChange={onFrameRateChange}>
-            {FRAME_RATES.map(({ label, value }) => (
-              <option key={`frame_rates#${value}`} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <br />
-          <button onClick={isRecording ? stopRecording : startRecording}>
-            {isRecording ? "Stop Recording" : "Start Record"}
-          </button>
-        </div>
+      <div>
+        <h3>
+          POC Video Capture - Native |{" "}
+          <a
+            target="_blank"
+            href="https://siva-globant.github.io/poc-capture-EMR/"
+          >
+            ExtendableMediaRecorder
+          </a>{" "}
+          |{" "}
+          <a
+            target="_blank"
+            href="https://siva-globant.github.io/poc-capture-record_rtc/"
+          >
+            Record RTC
+          </a>{" "}
+          | <span style={{ opacity: 0.5 }}>Record WebCam</span>
+        </h3>
       </div>
       <div
         style={{
-          flex: 3,
-          maxHeight: "80vh",
-          overflowY: "scroll",
+          display: "flex",
+          gap: "36px",
         }}
       >
-        {recordedVideo.map((ele, index) => (
+        <div style={{ flex: 8 }}>
           <div
             style={{
-              display: "flex",
-              flexDirection: "column",
-              backgroundColor: "grey",
-              padding: "8px",
-              margin: "8px 0px",
+              height: "80vh",
+              backgroundColor: "greenyellow",
             }}
           >
             <video
-              onLoadedMetadata={(event) => {
-                const { duration, videoHeight, videoWidth } =
-                  event.currentTarget;
-                setRecordedVideo((prevState) => {
-                  prevState[index] = {
-                    ...prevState[index],
+              style={{ width: "100%", height: "100%", aspectRatio: 16 / 9 }}
+              ref={liveStream}
+              autoPlay
+              muted
+              playsInline
+            />
+          </div>
+          <div>
+            <select value={currrentResolution} onChange={onResolutionChange}>
+              {RESOLUTIONS.map(({ label, value }) => (
+                <option key={`resolutions#${value}`} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select value={currrentBitRate} onChange={onBitRateChange}>
+              {BIT_RATES.map(({ label, value }) => (
+                <option key={`bit_rates#${value}`} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select value={currrentFrameRate} onChange={onFrameRateChange}>
+              {FRAME_RATES.map(({ label, value }) => (
+                <option key={`frame_rates#${value}`} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <br />
+            <button onClick={isRecording ? stopRecording : startRecording}>
+              {isRecording ? "Stop Recording" : "Start Record"}
+            </button>
+          </div>
+        </div>
+        <div
+          style={{
+            flex: 3,
+            maxHeight: "80vh",
+            overflowY: "scroll",
+          }}
+        >
+          {recordedVideo.map((ele, index) => (
+            <div
+              key={`Video#${index}`}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                backgroundColor: "grey",
+                padding: "8px",
+                margin: "8px 0px",
+              }}
+            >
+              <video
+                onLoadedMetadata={(event) => {
+                  const { duration, videoHeight, videoWidth } =
+                    event.currentTarget;
+                  setRecordedVideo((prevState) => {
+                    prevState[index] = {
+                      ...prevState[index],
+                      duration,
+                      videoHeight,
+                      videoWidth,
+                    };
+                    return [...prevState];
+                  });
+
+                  console.log(index, {
                     duration,
                     videoHeight,
                     videoWidth,
-                  };
-                  return [...prevState];
-                });
-
-                console.log(index, {
-                  duration,
-                  videoHeight,
-                  videoWidth,
-                });
-              }}
-              style={{ width: "150px", aspectRatio: 16 / 9 }}
-              controls
-              src={ele.url}
-            />
-            <div
-              style={{
-                display: "flex",
-                gap: "4px",
-                flexWrap: "wrap",
-                justifyContent: "space-around",
-              }}
-            >
-              {Object.keys(ele)
-                .filter((e) => !["url"].includes(e))
-                .map((eleKey) => (
-                  <p>
-                    {/* @ts-ignore */}
-                    {eleKey}:{ele[eleKey]}
-                  </p>
-                ))}
+                  });
+                }}
+                style={{ width: "150px", aspectRatio: 16 / 9 }}
+                controls
+                src={ele.url}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  gap: "4px",
+                  flexWrap: "wrap",
+                  justifyContent: "space-around",
+                }}
+              >
+                {Object.keys(ele)
+                  .filter((e) => !["url"].includes(e))
+                  .map((eleKey) => (
+                    <p key={eleKey}>
+                      {/* @ts-ignore */}
+                      {eleKey}:{ele[eleKey]}
+                    </p>
+                  ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
