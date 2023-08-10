@@ -122,11 +122,11 @@ function App() {
 
   const [isRecording, setIsRecording] = useState<boolean>(false);
 
-  const [currrentResolution, setCurrrentResolution] =
+  const [currentResolution, setCurrentResolution] =
     useState<ResolutionValueUnions>("default");
-  const [currrentBitRate, setCurrrentBitRate] =
+  const [currentBitRate, setCurrentBitRate] =
     useState<BitRateValueUnions>("default");
-  const [currrentFrameRate, setCurrrentFrameRate] =
+  const [currentFrameRate, setCurrentFrameRate] =
     useState<FrameRateValueUnions>("default");
   // const [recordingStatus,setRecordingStatus]=useState<"idle"|"recording">("idle")
   const [recordedVideo, setRecordedVideo] = useState<IRecordedVideoState[]>([]);
@@ -145,16 +145,16 @@ function App() {
     if (!("MediaRecorder" in window)) return;
     try {
       const [mediaWidth, mediaHeight] =
-        currrentResolution === "default" ? [] : currrentResolution.split("x");
+        currentResolution === "default" ? [] : currentResolution.split("x");
       const videoStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
           width: Number(mediaWidth),
           height: Number(mediaHeight),
           frameRate:
-            currrentFrameRate === "default"
+            currentFrameRate === "default"
               ? undefined
-              : Number(currrentFrameRate),
+              : Number(currentFrameRate),
         },
       });
       mediaStream.current = new MediaStream(videoStream.getVideoTracks());
@@ -185,6 +185,7 @@ function App() {
     if (!mediaStream.current) return alert("Cannot record Now");
     const media = new MediaRecorder(mediaStream.current, {
       mimeType: "video/webm",
+      bitsPerSecond: Number(currentBitRate),
     });
     mediaRecordRef.current = media;
     mediaRecordRef.current.start();
@@ -200,9 +201,9 @@ function App() {
       const url = URL.createObjectURL(blob);
       const currentRecordVideoInfo = {
         name: `VideoRecord-${recordedVideo.length + 1}`,
-        resolution: currrentResolution,
-        bitRate: currrentBitRate,
-        frameRate: currrentFrameRate,
+        resolution: currentResolution,
+        bitRate: currentBitRate,
+        frameRate: currentFrameRate,
         size: bytesToSize(blob.size),
         type: blob.type,
         url,
@@ -233,21 +234,21 @@ function App() {
       target: { value: ResolutionValueUnions };
     }
   ) => {
-    setCurrrentResolution(event.target.value);
+    setCurrentResolution(event.target.value);
   };
   const onBitRateChange = (
     event: ChangeEvent<HTMLSelectElement> & {
       target: { value: BitRateValueUnions };
     }
   ) => {
-    setCurrrentBitRate(event.target.value);
+    setCurrentBitRate(event.target.value);
   };
   const onFrameRateChange = (
     event: ChangeEvent<HTMLSelectElement> & {
       target: { value: FrameRateValueUnions };
     }
   ) => {
-    setCurrrentFrameRate(event.target.value);
+    setCurrentFrameRate(event.target.value);
   };
 
   return (
@@ -273,7 +274,13 @@ function App() {
           >
             Record RTC
           </a>{" "}
-          | <span style={{ opacity: 0.5 }}>Record WebCam</span>
+          |{" "}
+          <a
+            target="_blank"
+            href="https://siva-globant.github.io/poc-capture-react_webcam/"
+          >
+            React WebCam
+          </a>
         </h3>
       </div>
       <div
@@ -298,21 +305,21 @@ function App() {
             />
           </div>
           <div>
-            <select value={currrentResolution} onChange={onResolutionChange}>
+            <select value={currentResolution} onChange={onResolutionChange}>
               {RESOLUTIONS.map(({ label, value }) => (
                 <option key={`resolutions#${value}`} value={value}>
                   {label}
                 </option>
               ))}
             </select>
-            <select value={currrentBitRate} onChange={onBitRateChange}>
+            <select value={currentBitRate} onChange={onBitRateChange}>
               {BIT_RATES.map(({ label, value }) => (
                 <option key={`bit_rates#${value}`} value={value}>
                   {label}
                 </option>
               ))}
             </select>
-            <select value={currrentFrameRate} onChange={onFrameRateChange}>
+            <select value={currentFrameRate} onChange={onFrameRateChange}>
               {FRAME_RATES.map(({ label, value }) => (
                 <option key={`frame_rates#${value}`} value={value}>
                   {label}
