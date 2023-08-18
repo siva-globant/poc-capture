@@ -9,6 +9,7 @@ import {
   SentrySpan,
 } from "./context";
 import * as Sentry from "@sentry/react";
+
 type ResolutionValueUnions = "1920x1080" | "1280x720" | "640x480" | "3840x2160";
 type BitRateValueUnions =
   | "8000000000"
@@ -22,6 +23,18 @@ type FrameRateValueUnions = "15" | "24" | "30" | "60";
 interface ISelectRecord<T = string> {
   label: string;
   value: T;
+}
+interface IRecordedVideoState {
+  url: string;
+  name: string;
+  resolution?: ResolutionValueUnions;
+  bitRate?: BitRateValueUnions;
+  frameRate?: FrameRateValueUnions;
+  size: string;
+  type: string;
+  videoHeight?: number;
+  videoWidth?: number;
+  duration?: number;
 }
 const RESOLUTIONS: Array<ISelectRecord<ResolutionValueUnions>> = [
   {
@@ -89,21 +102,12 @@ const FRAME_RATES: Array<ISelectRecord<FrameRateValueUnions>> = [
  * MODE
  * PORTRAIT | LANDSCAPE
  */
-const isPortrait = true;
+const isPortrait = true,
+  COMPRESSION_RATIO = 0.8,
+  IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
+  MIME_TYPE = IS_SAFARI ? "video/mp4;codecs=avc1" : "video/webm;codecs=vp8",
+  EXTENSION = IS_SAFARI ? ".mp4" : ".webm";
 
-const COMPRESSION_RATIO = 0.8;
-interface IRecordedVideoState {
-  url: string;
-  name: string;
-  resolution?: ResolutionValueUnions;
-  bitRate?: BitRateValueUnions;
-  frameRate?: FrameRateValueUnions;
-  size: string;
-  type: string;
-  videoHeight?: number;
-  videoWidth?: number;
-  duration?: number;
-}
 function App() {
   const mediaRecordRef = useRef<MediaRecorder | null>(null);
   const videoEleRef = useRef<HTMLVideoElement>(null);
@@ -219,7 +223,6 @@ function App() {
       setCurrentBitRate(BIT_RATES[matchedBitRateIndex]?.value);
     }
   }, [currentFrameRate, currentResolution]);
-
   const startRecording = async () => {
     const transaction = Sentry.startTransaction({
       name: SentryTransaction.VIDEO_PROCESSING,
@@ -242,7 +245,7 @@ function App() {
     setIsRecording(true);
     if (!mediaStream.current) return alert("Cannot record Now");
     const media = new MediaRecorder(mediaStream.current, {
-      mimeType: "video/webm",
+      mimeType: MIME_TYPE,
       bitsPerSecond: Number(currentBitRate),
     });
     mediaRecordRef.current = media;
@@ -260,7 +263,7 @@ function App() {
       const blob = new Blob(mediaChunks.current, { type: chunk.type });
       const url = URL.createObjectURL(blob);
       const currentRecordVideoInfo = {
-        name: `VideoRecord-${recordedVideo.length + 1}`,
+        name: `VideoRecord-${recordedVideo.length + 1}${EXTENSION}`,
         resolution: currentResolution,
         bitRate: currentBitRate,
         frameRate: currentFrameRate,
@@ -514,6 +517,9 @@ function App() {
                     </p>
                   ))}
               </div>
+              <a href={ele.url} download={ele.name}>
+                Download
+              </a>
             </div>
           ))}
         </div>
