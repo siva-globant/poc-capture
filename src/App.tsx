@@ -9,6 +9,7 @@ import {
   SentrySpan,
   type SentryTransactionObject,
 } from "./context";
+import { useProfiler } from "@sentry/react";
 
 type ResolutionValueUnions = "1920x1080" | "1280x720" | "640x480" | "3840x2160";
 type BitRateValueUnions =
@@ -107,6 +108,7 @@ const isPortrait = true,
 
 function App() {
   const { measurePerformance } = useMonitoring();
+  useProfiler("MainApp");
 
   const mediaRecordRef = useRef<MediaRecorder | null>(null);
   const videoEleRef = useRef<HTMLVideoElement>(null);
@@ -276,6 +278,7 @@ function App() {
       });
       setRecordedVideo((prevState) => [...prevState, currentRecordVideoInfo]);
       mediaChunks.current = [];
+      finishSpan(SentrySpan.BLOB_MERGING);
       finish("SUCCESS");
     };
     mediaRecordRef.current.ondataavailable = (event) => {

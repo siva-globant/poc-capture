@@ -11,7 +11,7 @@ const sentryConfig = {
   debug: import.meta.env.PROD,
   tracesSampleRate: 1.0,
   release: `poc-video-capture-native`,
-  tracingOrigins: ["localhost", "https://siva-globant.github.io"],
+  tracingOrigins: ["127.0.0.1", "localhost", "https://siva-globant.github.io"],
 };
 // Sentry.init({
 //   dsn: "https://6452d0c6c4bda6947b3186da5506fba3@o4505669501648896.ingest.sentry.io/4505679649177600",

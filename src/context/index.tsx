@@ -131,7 +131,6 @@ export function MonitoringProvider({
         name,
         data,
         op,
-        sampled: true,
       });
 
       // Set transaction on scope to associate with errors and get included span instrumentation
@@ -218,7 +217,6 @@ export function MonitoringProvider({
       setMeasurement,
     ]
   );
-
   return (
     <Context.Provider value={monitoringContextValue}>
       {children}
